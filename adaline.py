@@ -15,6 +15,10 @@ NOMES_PLANILHA_TREINAMENTO = (
     "Registro de treinamento - Adalaine.xlsx",
     "Registro de treinamento - Adaline.xlsx",
 )
+NOMES_PLANILHA_VALIDACAO = (
+    "Registro de validação - Adalaine.xlsx",
+    "Registro de validação - Adaline.xlsx",
+)
 
 
 DADOS_TREINAMENTO = [
@@ -144,6 +148,10 @@ def formatar_vetor(vetor):
     return "[" + ", ".join(f"{valor:.6f}" for valor in vetor) + "]"
 
 
+def formatar_classe(valor_saida):
+    return "B" if valor_saida >= 0 else "A"
+
+
 def imprimir_tabela_resultados(resultados):
     cabecalho = [
         "Treinamento",
@@ -202,6 +210,62 @@ def preencher_pesos_na_linha(folha, linha, coluna_inicial, coluna_final, pesos):
             celula.number_format = "0.000000"
 
 
+def classificar_amostras_validacao(x_validacao, pesos_por_treinamento):
+    classificacoes = []
+
+    for indice_amostra, amostra in enumerate(x_validacao, start=1):
+        resultados_amostra = []
+        for pesos in pesos_por_treinamento:
+            saida = saida_linear(pesos, amostra)
+            resultados_amostra.append(
+                {
+                    "saida": saida,
+                    "classe": formatar_classe(saida),
+                }
+            )
+
+        classificacoes.append(
+            {
+                "amostra": indice_amostra,
+                "caracteristicas": amostra[1:],
+                "resultados": resultados_amostra,
+            }
+        )
+
+    return classificacoes
+
+
+def imprimir_tabela_validacao(classificacoes):
+    cabecalho = ["Amostra", "X1", "X2", "X3", "X4", "y(T1)", "y(T2)", "y(T3)", "y(T4)", "y(T5)"]
+
+    linhas = []
+    for item in classificacoes:
+        linha = [
+            str(item["amostra"]),
+            f"{item['caracteristicas'][0]:.4f}",
+            f"{item['caracteristicas'][1]:.4f}",
+            f"{item['caracteristicas'][2]:.4f}",
+            f"{item['caracteristicas'][3]:.4f}",
+        ]
+        linha.extend(resultado["classe"] for resultado in item["resultados"])
+        linhas.append(linha)
+
+    larguras = [len(coluna) for coluna in cabecalho]
+    for linha in linhas:
+        for indice, valor in enumerate(linha):
+            larguras[indice] = max(larguras[indice], len(valor))
+
+    separador = "-+-".join("-" * largura for largura in larguras)
+    linha_cabecalho = " | ".join(titulo.ljust(larguras[i]) for i, titulo in enumerate(cabecalho))
+
+    print("\nRESULTADOS DA VALIDACAO (ADALINE)")
+    print(linha_cabecalho)
+    print(separador)
+
+    for linha in linhas:
+        print(" | ".join(linha[i].ljust(larguras[i]) for i in range(len(cabecalho))))
+
+
 def registrar_treinamentos_em_planilha(resultados, caminho_planilha):
     if not caminho_planilha.exists():
         raise FileNotFoundError(f"Planilha de registro nao encontrada: {caminho_planilha}")
@@ -240,6 +304,37 @@ def registrar_treinamentos_em_planilha(resultados, caminho_planilha):
     workbook.save(caminho_planilha)
 
 
+def registrar_validacao_em_planilha(classificacoes, caminho_planilha):
+    if not caminho_planilha.exists():
+        raise FileNotFoundError(f"Planilha de validacao nao encontrada: {caminho_planilha}")
+
+    workbook = load_workbook(caminho_planilha)
+    folha = workbook["Sheet1"] if "Sheet1" in workbook.sheetnames else workbook.active
+
+    for item in classificacoes:
+        linha = item["amostra"] + 4
+        folha.cell(row=linha, column=4).value = item["amostra"]
+
+        for indice_caracteristica, valor in enumerate(item["caracteristicas"], start=5):
+            celula = folha.cell(row=linha, column=indice_caracteristica)
+            celula.value = float(valor)
+            celula.number_format = "0.0000"
+
+        for indice_resultado, resultado in enumerate(item["resultados"], start=9):
+            folha.cell(row=linha, column=indice_resultado).value = resultado["classe"]
+
+    workbook.save(caminho_planilha)
+
+
+def resolver_caminho_planilha_validacao(pasta_projeto):
+    for nome_arquivo in NOMES_PLANILHA_VALIDACAO:
+        caminho = pasta_projeto / nome_arquivo
+        if caminho.exists():
+            return caminho
+
+    return pasta_projeto / NOMES_PLANILHA_VALIDACAO[-1]
+
+
 def resolver_caminho_planilha_treinamento(pasta_projeto):
     for nome_arquivo in NOMES_PLANILHA_TREINAMENTO:
         caminho = pasta_projeto / nome_arquivo
@@ -253,6 +348,7 @@ def main():
     pasta_projeto = Path(__file__).resolve().parent
     x, d, x_validacao = carregar_dados_de_vetores()
     caminho_planilha_treinamento = resolver_caminho_planilha_treinamento(pasta_projeto)
+    caminho_planilha_validacao = resolver_caminho_planilha_validacao(pasta_projeto)
 
     # Mantido para uso futuro do projeto (relatorios).
     _ = x_validacao
@@ -287,6 +383,11 @@ def main():
 
     imprimir_tabela_resultados(resultados)
     registrar_treinamentos_em_planilha(resultados, caminho_planilha_treinamento)
+
+    pesos_por_treinamento = [resultado["pesos_finais"] for resultado in resultados]
+    classificacoes_validacao = classificar_amostras_validacao(x_validacao, pesos_por_treinamento)
+    imprimir_tabela_validacao(classificacoes_validacao)
+    registrar_validacao_em_planilha(classificacoes_validacao, caminho_planilha_validacao)
 
 
 if __name__ == "__main__":
