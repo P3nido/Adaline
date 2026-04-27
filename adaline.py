@@ -12,11 +12,9 @@ max_epocas = 1000
 i_treinamento = 5
 intervalo_entre_treinamentos_segundos = 2
 NOMES_PLANILHA_TREINAMENTO = (
-    "Registro de treinamento - Adalaine.xlsx",
     "Registro de treinamento - Adaline.xlsx",
 )
 NOMES_PLANILHA_VALIDACAO = (
-    "Registro de validação - Adalaine.xlsx",
     "Registro de validação - Adaline.xlsx",
 )
 
@@ -107,7 +105,7 @@ def calcular_eqm_online(soma_erros_quadrados, total_amostras):
 
 
 def treinar_adaline_online(x, d, taxa_aprendizado, precisao_eqm, max_epocas, pesos_iniciais):
-    """Treina Adaline no modo online (amostra por amostra)."""
+    """Treinamento do Adaline usando a regra de Delta"""
     pesos = pesos_iniciais.copy().astype(float)
     eqm_anterior = np.inf
     historico_eqm = []
@@ -120,7 +118,7 @@ def treinar_adaline_online(x, d, taxa_aprendizado, precisao_eqm, max_epocas, pes
             u = saida_linear(pesos, amostra)
             erro = desejado - u
 
-            # Regra Delta (atualizacao online)
+            # Regra Delta 
             pesos = pesos + taxa_aprendizado * erro * amostra
             soma_erros_quadrados += erro ** 2
 
@@ -137,7 +135,7 @@ def treinar_adaline_online(x, d, taxa_aprendizado, precisao_eqm, max_epocas, pes
 
 
 def gerar_pesos_iniciais(tamanho_vetor, numero_treinamento):
-    """Gera pesos iniciais em [0, 1] com seed baseada no timestamp atual."""
+    """Gera pesos iniciais em [0, 1] com seed baseada no horario atual."""
     seed_atual = time.time_ns() + numero_treinamento
     random.seed(seed_atual)
     pesos = np.array([random.random() for _ in range(tamanho_vetor)], dtype=float)
