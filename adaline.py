@@ -1,16 +1,20 @@
-
 import random
 import time
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
+from openpyxl import load_workbook
 
 
 coeficiente_aprendizado = 0.0025
 epsilon = 1e-6
 max_epocas = 1000
 i_treinamento = 5
+intervalo_entre_treinamentos_segundos = 2
+NOMES_PLANILHA_TREINAMENTO = (
+    "Registro de treinamento - Adalaine.xlsx",
+    "Registro de treinamento - Adaline.xlsx",
+)
 
 
 DADOS_TREINAMENTO = [
@@ -143,8 +147,8 @@ def formatar_vetor(vetor):
 def imprimir_tabela_resultados(resultados):
     cabecalho = [
         "Treinamento",
-        "Pesos iniciais (w0..w4)",
-        "Pesos finais (w0..w4)",
+        "Pesos iniciais (w0...w4)",
+        "Pesos finais (w0...w4)",
         "Epocas",
     ]
 
@@ -189,12 +193,68 @@ def plotar_eqm(historico_eqm):
     plt.close()
 
 
+def preencher_pesos_na_linha(folha, linha, coluna_inicial, coluna_final, pesos):
+    for deslocamento, coluna in enumerate(range(coluna_inicial, coluna_final + 1)):
+        valor = float(pesos[deslocamento]) if deslocamento < len(pesos) else None
+        celula = folha.cell(row=linha, column=coluna)
+        celula.value = valor
+        if valor is not None:
+            celula.number_format = "0.000000"
+
+
+def registrar_treinamentos_em_planilha(resultados, caminho_planilha):
+    if not caminho_planilha.exists():
+        raise FileNotFoundError(f"Planilha de registro nao encontrada: {caminho_planilha}")
+
+    workbook = load_workbook(caminho_planilha)
+    folha = workbook["Sheet1"] if "Sheet1" in workbook.sheetnames else workbook.active
+
+    linha_inicial = 8
+    linha_final = linha_inicial + i_treinamento - 1
+
+    # Limpa os valores antigos da area de resultados e preserva o layout do template.
+    for linha in range(linha_inicial, linha_final + 1):
+        for coluna in range(6, 19):
+            folha.cell(row=linha, column=coluna).value = None
+
+    for indice, resultado in enumerate(resultados, start=1):
+        linha = linha_inicial + indice - 1
+
+        folha.cell(row=linha, column=5).value = f"#{indice} T({indice})"
+        preencher_pesos_na_linha(
+            folha,
+            linha,
+            coluna_inicial=6,
+            coluna_final=11,
+            pesos=resultado["pesos_iniciais"],
+        )
+        preencher_pesos_na_linha(
+            folha,
+            linha,
+            coluna_inicial=12,
+            coluna_final=17,
+            pesos=resultado["pesos_finais"],
+        )
+        folha.cell(row=linha, column=18).value = int(resultado["epocas"])
+
+    workbook.save(caminho_planilha)
+
+
+def resolver_caminho_planilha_treinamento(pasta_projeto):
+    for nome_arquivo in NOMES_PLANILHA_TREINAMENTO:
+        caminho = pasta_projeto / nome_arquivo
+        if caminho.exists():
+            return caminho
+
+    return pasta_projeto / NOMES_PLANILHA_TREINAMENTO[-1]
+
+
 def main():
     pasta_projeto = Path(__file__).resolve().parent
     x, d, x_validacao = carregar_dados_de_vetores()
+    caminho_planilha_treinamento = resolver_caminho_planilha_treinamento(pasta_projeto)
 
-    # Mantido para uso futuro do projeto (ex.: escrita de relatorios/arquivos auxiliares).
-    _ = pasta_projeto
+    # Mantido para uso futuro do projeto (relatorios).
     _ = x_validacao
 
     resultados = []
@@ -220,8 +280,13 @@ def main():
                 "eqm_final": historico_eqm[-1],
             }
         )
+        print(f"Treinamento {treino} concluido")
+
+        if treino < i_treinamento:
+            time.sleep(intervalo_entre_treinamentos_segundos)
 
     imprimir_tabela_resultados(resultados)
+    registrar_treinamentos_em_planilha(resultados, caminho_planilha_treinamento)
 
 
 if __name__ == "__main__":
