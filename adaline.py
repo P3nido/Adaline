@@ -187,16 +187,27 @@ def imprimir_tabela_resultados(resultados):
         print(" | ".join(linha[i].ljust(larguras[i]) for i in range(len(cabecalho))))
 
 
-def plotar_eqm(historico_eqm):
-    """Funcao pronta para uso futuro com matplotlib."""
-    plt.figure(figsize=(8, 4))
-    plt.plot(range(1, len(historico_eqm) + 1), historico_eqm)
-    plt.title("Evolucao do EQM")
-    plt.xlabel("Epoca")
-    plt.ylabel("EQM")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.close()
+def salvar_graficos_eqm_por_treinamento(resultados, pasta_graficos):
+    pasta_graficos.mkdir(parents=True, exist_ok=True)
+
+    for resultado in resultados:
+        plt.figure(figsize=(10, 6))
+        plt.plot(
+            range(1, len(resultado["historico_eqm"]) + 1),
+            resultado["historico_eqm"],
+            label=f"Treinamento {resultado['treinamento']}",
+        )
+
+        plt.title(f"Evolucao do EQM - Treinamento {resultado['treinamento']}")
+        plt.xlabel("Epocas")
+        plt.ylabel("EQM")
+        plt.legend()
+        plt.grid(True, which="both", ls="-", alpha=0.5)
+        plt.tight_layout()
+
+        caminho_imagem = pasta_graficos / f"eqm_treinamento_{resultado['treinamento']}.png"
+        plt.savefig(caminho_imagem, dpi=150)
+        plt.close()
 
 
 def preencher_pesos_na_linha(folha, linha, coluna_inicial, coluna_final, pesos):
@@ -344,6 +355,7 @@ def resolver_caminho_planilha_treinamento(pasta_projeto):
 
 def main():
     pasta_projeto = Path(__file__).resolve().parent
+    pasta_graficos = pasta_projeto / "Graphics"
     x, d, x_validacao = carregar_dados_de_vetores()
     caminho_planilha_treinamento = resolver_caminho_planilha_treinamento(pasta_projeto)
     caminho_planilha_validacao = resolver_caminho_planilha_validacao(pasta_projeto)
@@ -372,6 +384,7 @@ def main():
                 "pesos_finais": pesos_finais,
                 "epocas": epocas,
                 "eqm_final": historico_eqm[-1],
+                "historico_eqm": historico_eqm,
             }
         )
         print(f"Treinamento {treino} concluido")
@@ -386,6 +399,7 @@ def main():
     classificacoes_validacao = classificar_amostras_validacao(x_validacao, pesos_por_treinamento)
     imprimir_tabela_validacao(classificacoes_validacao)
     registrar_validacao_em_planilha(classificacoes_validacao, caminho_planilha_validacao)
+    salvar_graficos_eqm_por_treinamento(resultados, pasta_graficos)
 
 
 if __name__ == "__main__":
