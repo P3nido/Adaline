@@ -4,6 +4,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from openpyxl import load_workbook
+from sklearn.metrics import ConfusionMatrixDisplay, accuracy_score, confusion_matrix, precision_score, recall_score
 
 
 coeficiente_aprendizado = 0.0025
@@ -17,6 +18,7 @@ NOMES_PLANILHA_TREINAMENTO = (
 NOMES_PLANILHA_VALIDACAO = (
     "Registro de validação - Adaline.xlsx",
 )
+NOME_RELATORIO_METRICAS = "capitacao_dados.txt"
 
 
 DADOS_TREINAMENTO = [
@@ -74,6 +76,25 @@ DADOS_VALIDACAO = [
     [-0.1874, 1.3343, 0.5374, 3.2189],
     [0.5060, 1.3317, 0.9222, 3.7174],
     [1.6375, -0.7911, 0.7537, 0.5515],
+]
+
+
+ROTULOS_VALIDACAO_CORRETOS = [
+    "A",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B",
+    "B",
+    "B",
+    "B",
+    "A",
+    "A",
+    "B",
+    "A",
+    "A",
+    "B",
 ]
 
 
@@ -224,10 +245,11 @@ def classificar_amostras_validacao(x_validacao, pesos_por_treinamento):
 
     for indice_amostra, amostra in enumerate(x_validacao, start=1):
         resultados_amostra = []
-        for pesos in pesos_por_treinamento:
+        for indice_treinamento, pesos in enumerate(pesos_por_treinamento, start=1):
             saida = saida_linear(pesos, amostra)
             resultados_amostra.append(
                 {
+                    "treinamento": indice_treinamento,
                     "saida": saida,
                     "classe": formatar_classe(saida),
                 }
@@ -242,6 +264,101 @@ def classificar_amostras_validacao(x_validacao, pesos_por_treinamento):
         )
 
     return classificacoes
+
+
+def calcular_metricas_classificacao(rotulos_reais, rotulos_previstos):
+    matriz = confusion_matrix(rotulos_reais, rotulos_previstos, labels=["A", "B"])
+    tn, fp, fn, tp = matriz.ravel()
+
+    acertos = tn + tp
+    erros = fp + fn
+
+    return {
+        "matriz_confusao": matriz,
+        "acertos": acertos,
+        "erros": erros,
+        "acuracia": accuracy_score(rotulos_reais, rotulos_previstos),
+        "sensibilidade": recall_score(rotulos_reais, rotulos_previstos, pos_label="B", zero_division=0),
+        "especificidade": tn / (tn + fp) if (tn + fp) else 0.0,
+        "precisao": precision_score(rotulos_reais, rotulos_previstos, pos_label="B", zero_division=0),
+        "tn": tn,
+        "fp": fp,
+        "fn": fn,
+        "tp": tp,
+    }
+
+
+def extrair_rotulos_previstos_por_treinamento(classificacoes):
+    if not classificacoes:
+        return []
+
+    quantidade_treinamentos = len(classificacoes[0]["resultados"])
+    rotulos_por_treinamento = [[] for _ in range(quantidade_treinamentos)]
+
+    for item in classificacoes:
+        for indice_treinamento, resultado in enumerate(item["resultados"]):
+            rotulos_por_treinamento[indice_treinamento].append(resultado["classe"])
+
+    return rotulos_por_treinamento
+
+
+def formatar_matriz_confusao(matriz):
+    return (
+        "                Previsto A  Previsto B\n"
+        f"Real A              {int(matriz[0, 0]):>3}         {int(matriz[0, 1]):>3}\n"
+        f"Real B              {int(matriz[1, 0]):>3}         {int(matriz[1, 1]):>3}"
+    )
+
+
+def salvar_relatorio_metricas_em_txt(classificacoes, caminho_relatorio, rotulos_reais):
+    linhas_relatorio = [
+        "RELATORIO DA QUESTAO 5 - ADALINE",
+        "Legenda: classe A = negativa, classe B = positiva",
+        "",
+    ]
+
+    rotulos_por_treinamento = extrair_rotulos_previstos_por_treinamento(classificacoes)
+
+    for indice_treinamento, rotulos_previstos in enumerate(rotulos_por_treinamento, start=1):
+        metricas = calcular_metricas_classificacao(rotulos_reais, rotulos_previstos)
+
+        linhas_relatorio.extend(
+            [
+                f"Treinamento {indice_treinamento}",
+                formatar_matriz_confusao(metricas["matriz_confusao"]),
+                f"Acertos: {metricas['acertos']}",
+                f"Erros: {metricas['erros']}",
+                f"Acuracia: {metricas['acuracia']:.6f}",
+                f"Sensibilidade: {metricas['sensibilidade']:.6f}",
+                f"Especificidade: {metricas['especificidade']:.6f}",
+                f"Precisao: {metricas['precisao']:.6f}",
+                f"VP: {metricas['tp']} | VN: {metricas['tn']} | FP: {metricas['fp']} | FN: {metricas['fn']}",
+                "",
+            ]
+        )
+
+    caminho_relatorio.write_text("\n".join(linhas_relatorio), encoding="utf-8")
+
+
+def salvar_graficos_matriz_confusao(classificacoes, pasta_graficos, rotulos_reais):
+    pasta_graficos.mkdir(parents=True, exist_ok=True)
+
+    rotulos_por_treinamento = extrair_rotulos_previstos_por_treinamento(classificacoes)
+
+    for indice_treinamento, rotulos_previstos in enumerate(rotulos_por_treinamento, start=1):
+        matriz = confusion_matrix(rotulos_reais, rotulos_previstos, labels=["A", "B"])
+        figura, eixo = plt.subplots(figsize=(7, 6))
+
+        display = ConfusionMatrixDisplay(confusion_matrix=matriz, display_labels=["A", "B"])
+        display.plot(ax=eixo, cmap="Blues", values_format="d", colorbar=False)
+        eixo.set_title(f"Matriz de Confusao - Treinamento {indice_treinamento}")
+        eixo.set_xlabel("Classe prevista")
+        eixo.set_ylabel("Classe real")
+        figura.tight_layout()
+
+        caminho_imagem = pasta_graficos / f"matriz_confusao_treinamento_{indice_treinamento}.png"
+        figura.savefig(caminho_imagem, dpi=150)
+        plt.close(figura)
 
 
 def imprimir_tabela_validacao(classificacoes):
@@ -359,6 +476,7 @@ def main():
     x, d, x_validacao = carregar_dados_de_vetores()
     caminho_planilha_treinamento = resolver_caminho_planilha_treinamento(pasta_projeto)
     caminho_planilha_validacao = resolver_caminho_planilha_validacao(pasta_projeto)
+    caminho_relatorio_metricas = pasta_projeto / NOME_RELATORIO_METRICAS
 
     # Mantido para uso futuro do projeto (relatorios).
     _ = x_validacao
@@ -399,6 +517,8 @@ def main():
     classificacoes_validacao = classificar_amostras_validacao(x_validacao, pesos_por_treinamento)
     imprimir_tabela_validacao(classificacoes_validacao)
     registrar_validacao_em_planilha(classificacoes_validacao, caminho_planilha_validacao)
+    salvar_relatorio_metricas_em_txt(classificacoes_validacao, caminho_relatorio_metricas, ROTULOS_VALIDACAO_CORRETOS)
+    salvar_graficos_matriz_confusao(classificacoes_validacao, pasta_graficos, ROTULOS_VALIDACAO_CORRETOS)
     salvar_graficos_eqm_por_treinamento(resultados, pasta_graficos)
 
 

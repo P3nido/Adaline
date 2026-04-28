@@ -1,0 +1,62 @@
+RELATORIO DA QUESTAO 5 - ADALINE
+Legenda: classe A = negativa, classe B = positiva
+
+Treinamento 1
+                Previsto A  Previsto B
+Real A                8           0
+Real B                0           7
+Acertos: 15
+Erros: 0
+Acuracia: 1.000000
+Sensibilidade: 1.000000
+Especificidade: 1.000000
+Precisao: 1.000000
+VP: 7 | VN: 8 | FP: 0 | FN: 0
+
+Treinamento 2
+                Previsto A  Previsto B
+Real A                8           0
+Real B                0           7
+Acertos: 15
+Erros: 0
+Acuracia: 1.000000
+Sensibilidade: 1.000000
+Especificidade: 1.000000
+Precisao: 1.000000
+VP: 7 | VN: 8 | FP: 0 | FN: 0
+
+Treinamento 3
+                Previsto A  Previsto B
+Real A                8           0
+Real B                0           7
+Acertos: 15
+Erros: 0
+Acuracia: 1.000000
+Sensibilidade: 1.000000
+Especificidade: 1.000000
+Precisao: 1.000000
+VP: 7 | VN: 8 | FP: 0 | FN: 0
+
+Treinamento 4
+                Previsto A  Previsto B
+Real A                8           0
+Real B                0           7
+Acertos: 15
+Erros: 0
+Acuracia: 1.000000
+Sensibilidade: 1.000000
+Especificidade: 1.000000
+Precisao: 1.000000
+VP: 7 | VN: 8 | FP: 0 | FN: 0
+
+Treinamento 5
+                Previsto A  Previsto B
+Real A                8           0
+Real B                0           7
+Acertos: 15
+Erros: 0
+Acuracia: 1.000000
+Sensibilidade: 1.000000
+Especificidade: 1.000000
+Precisao: 1.000000
+VP: 7 | VN: 8 | FP: 0 | FN: 0
